@@ -236,7 +236,7 @@ namespace com.facebook.witai.utility
             else
             {
                 submitStart = System.DateTime.Now;
-                var request = witConfiguration.MessageRequest(utterance);
+                var request = witConfiguration.MessageRequest(utterance, new WitRequestOptions());
                 request.onResponse = (r) => ShowResponse(r.ResponseData);
                 request.Request();
                 loading = true;

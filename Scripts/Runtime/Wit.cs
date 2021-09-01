@@ -31,6 +31,7 @@ namespace com.facebook.witai
 
         private float activationTime;
         private IAudioInputSource micInput;
+        private WitRequestOptions currentRequestOptions;
         private float lastMinVolumeLevelTime;
         private WitRequest activeRequest;
 
@@ -228,7 +229,7 @@ namespace com.facebook.witai
             {
                 events.OnMinimumWakeThresholdHit?.Invoke();
                 isSoundWakeActive = false;
-                ActivateImmediately();
+                ActivateImmediately(currentRequestOptions);
             }
         }
 
@@ -300,6 +301,13 @@ namespace com.facebook.witai
         /// </summary>
         public void Activate()
         {
+            Activate(new WitRequestOptions());
+        }
+            /// <summary>
+        /// Activate the microphone and send data to Wit for NLU processing.
+        /// </summary>
+        public void Activate(WitRequestOptions requestOptions)
+        {
             if (!micInput.IsRecording && ShouldSendMicData)
             {
                 if (null == micDataBuffer && runtimeConfiguration.micBufferLengthInSeconds > 0)
@@ -327,10 +335,15 @@ namespace com.facebook.witai
                 isActive = true;
 
                 lastMinVolumeLevelTime = float.PositiveInfinity;
+                currentRequestOptions = requestOptions;
             }
         }
 
         public void ActivateImmediately()
+        {
+            ActivateImmediately(new WitRequestOptions());
+        }
+        public void ActivateImmediately(WitRequestOptions requestOptions)
         {
             // Make sure we aren't checking activation time until
             // the mic starts recording. If we're already recording for a live
@@ -343,7 +356,7 @@ namespace com.facebook.witai
 
             if (ShouldSendMicData)
             {
-                activeRequest = Configuration.SpeechRequest();
+                activeRequest = Configuration.SpeechRequest(requestOptions);
                 activeRequest.audioEncoding = micInput.AudioEncoding;
                 activeRequest.onPartialTranscription =
                     s => updateQueue.Enqueue(() => OnPartialTranscription(s));
@@ -455,17 +468,34 @@ namespace com.facebook.witai
         /// Send text data to Wit.ai for NLU processing
         /// </summary>
         /// <param name="transcription"></param>
-        public void Activate(string transcription)
+        public void Activate(string transcription, WitRequestOptions requestOptions)
         {
             if (Active) return;
 
-            SendTranscription(transcription);
+            SendTranscription(transcription, requestOptions);
+        }
+
+         /// <summary>
+        /// Send text data to Wit.ai for NLU processing
+        /// </summary>
+        /// <param name="transcription"></param>
+        public void Activate(string transcription)
+        {
+            Activate(transcription, new WitRequestOptions());
         }
 
         private void SendTranscription(string transcription)
         {
+            SendTranscription(transcription, new WitRequestOptions());
+        }
+
+        private void SendTranscription(string transcription, WitRequestOptions requestOptions)
+        {
+            if(requestOptions == null){
+                requestOptions = new WitRequestOptions();
+            }
             isActive = true;
-            activeRequest = Configuration.MessageRequest(transcription);
+            activeRequest = Configuration.MessageRequest(transcription, requestOptions);
             activeRequest.onResponse = QueueResult;
             events.OnRequestCreated?.Invoke(activeRequest);
             activeRequest.Request();
